@@ -420,33 +420,15 @@ func (b *binance) GetApiV3TickerPrice(symbols ...string) ([]*apiV3TickerPriceRes
 //		//values.Set("timeInForce", "IOC")
 //		values.Set("timestamp", b.timestampMilli())
 //	}
-func (b *binance) Order() (*apiOrderRsp, error) {
+
+func (b *binance) Order(market string, size string, side string) (*apiOrderRsp, error) {
 	//市价开多
-	//values := url.Values{}
-	//values.Set("symbol", "BTCUSDT")
-	//values.Set("side", "BUY")
-	//values.Set("positionSide", "LONG")
-	//values.Set("type", "MARKET")
-	//values.Set("quantity", decimal.NewFromFloat(0.003).String())
-	////values.Set("price", decimal.NewFromFloat(0).String())
-	//values.Set("newClientOrderId", "123")
-	//values.Set("closePosition", "false")
-	////values.Set("timeInForce", "IOC")
-	//values.Set("timestamp", b.timestampMilli())
-
 	values := url.Values{}
-	values.Set("symbol", "BTCUSDT")
-	values.Set("side", "BUY")
-	values.Set("positionSide", "LONG")
+	values.Set("symbol", trans2BinancecMarket(market)) //BTCUSDT
+	values.Set("side", side)                           //BUY SELL
 	values.Set("type", "MARKET")
-	values.Set("reduceOnly", "true")
-	values.Set("quantity", decimal.NewFromFloat(0.003).String())
-	//values.Set("price", decimal.NewFromFloat(0).String())
-	values.Set("newClientOrderId", "123")
-	values.Set("closePosition", "false")
-	//values.Set("timeInForce", "IOC")
+	values.Set("quantity", size)
 	values.Set("timestamp", b.timestampMilli())
-
 	api := fmt.Sprintf("%s/fapi/v1/order?%s&signature=%s", b.fapiEndpoint, values.Encode(), b.makeSignature(b.secret, values))
 
 	req, err := http.NewRequest(http.MethodPost, api, nil)
@@ -832,3 +814,12 @@ func (b *binance) timestampMilli() string {
 //
 //	return account, nil
 //}
+
+// BTC_USDT -> BTCUSDT
+func trans2BinancecMarket(market string) string {
+	arr := strings.Split(market, "_USDT")
+	if len(arr) != 2 {
+		return ""
+	}
+	return arr[0] + "USDT"
+}

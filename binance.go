@@ -7,6 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 	"os"
 	"os/signal"
+	"quant/binance_api"
 	"quant/log"
 	"quant/ws"
 	"strings"
@@ -53,13 +54,13 @@ type binanceTransHistory struct {
 
 func main() {
 	initLog()
-	//binance_api.InitBinanceApi("", "")
-	////processPushMsg("", "")
-	//binance_api.BinanceApiClient.Order()
-	//signalQuit()
-	AsyncProcessBinancePubChan()
-	go ws.GateTicker()
-	select {}
+	binance_api.InitBinanceApi("02rw4kB2Lla22hGzFEkD77Cxnm55ogQYeZk5hthXmfRUM2NuyVYBRMCRcL6tb0nd", "arMz2bClKB0F3nekZc8JNIw2YBZ1ONpxfaOhKRJyMPceyLBEZcawauYXc9kNwJz5")
+	//processPushMsg("", "")
+	binance_api.BinanceApiClient.Order("BTC_USDT", "0.01", "BUY")
+	////signalQuit()
+	//AsyncProcessBinancePubChan()
+	//go ws.GateTicker()
+	//select {}
 }
 
 func signalQuit() {
@@ -248,7 +249,7 @@ func processPubMsg(msgBytes []byte) {
 		if !price.IsPositive() {
 			return
 		}
-		market := transMarket(binanceMarket)
+		market := trans2GateMarket(binanceMarket)
 		binanceLastPriceMap.Store(market, price)
 		gatePrice, ok := ws.GateLastPriceMap.Load(market)
 		if !ok {
@@ -271,9 +272,7 @@ func processPubMsg(msgBytes []byte) {
 			count2Maker++
 			//Log.Infof("both maker:%s,count:%d", msg, count2Maker)
 		}
-		fmt.Println(msg)
 	}
-	fmt.Println()
 }
 
 func getMarketKey(market string, engineType TEngineType) string {
@@ -281,7 +280,7 @@ func getMarketKey(market string, engineType TEngineType) string {
 }
 
 // BTCUSDT->BTC_USDT
-func transMarket(market string) string {
+func trans2GateMarket(market string) string {
 	arr := strings.Split(market, "USDT")
 	if len(arr) != 2 {
 		Log.Errorf("market:%s transMarket err", market)
