@@ -33,7 +33,7 @@ var countTakerAndMaker = 0
 var count2Maker = 0
 
 func initLog() {
-	Log = log.New("./logs/quant.log", "DEBUG")
+	Log = log.New("./logs/move_profit.log", "DEBUG")
 	ErrLog = log.New("./logs/copy_trading_err.log", "DEBUG")
 }
 
