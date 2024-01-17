@@ -1,4 +1,4 @@
-package ws
+package gate_ws
 
 import (
 	"crypto/hmac"

@@ -6,6 +6,13 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+var Log, ErrLog *logging.Logger
+
+func InitLog() {
+	Log = New("./logs/move_profit.log", "DEBUG")
+	ErrLog = New("./logs/copy_trading_err.log", "DEBUG")
+}
+
 func New(logPath string, logLevel string) *logging.Logger {
 	f := &lumberjack.Logger{
 		Filename: logPath,

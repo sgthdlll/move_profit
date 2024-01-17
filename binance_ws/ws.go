@@ -34,7 +34,6 @@ const (
 
 type WsService struct {
 	logger   *logging.Logger
-	quitChan chan struct{}
 	conf     *ConnConf
 	clientMu *sync.Mutex
 
@@ -68,13 +67,12 @@ type ConnConf struct {
 	SkipTlsVerify            bool
 }
 
-func NewWsService(quitChan chan struct{}, logger *logging.Logger, conf *ConnConf) (*WsService, error) {
+func NewWsService(logger *logging.Logger, conf *ConnConf) (*WsService, error) {
 	if err := checkConf(conf); err != nil {
 		return nil, err
 	}
 
 	ws := &WsService{
-		quitChan:     quitChan,
 		logger:       logger,
 		conf:         conf,
 		clientMu:     new(sync.Mutex),
@@ -187,10 +185,6 @@ func (ws *WsService) Start(initChan chan struct{}) {
 
 	//初始化的时候也得去重新获取一下仓位信息
 	ws.restartChan <- 1
-	select {
-	case <-ws.quitChan:
-		return
-	}
 }
 
 func (ws *WsService) setListenKey(key string) {
@@ -399,9 +393,6 @@ func (ws *WsService) readPublicMsg() {
 
 	for {
 		select {
-		case <-ws.quitChan:
-			ws.logger.Warning("closing public reader")
-			return
 		default:
 			_, message, err := ws.publicClient.ReadMessage()
 			if err != nil {
@@ -428,9 +419,6 @@ func (ws *WsService) readPrivacyMsg() {
 
 	for {
 		select {
-		case <-ws.quitChan:
-			ws.logger.Warning("closing privacy reader")
-			return
 		default:
 			_, message, err := ws.privacyClient.ReadMessage()
 			if err != nil {
