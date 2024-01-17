@@ -12,15 +12,16 @@ import (
 )
 
 type MarketInfo struct {
-	Name string `json:"name"`
+	Name             string `json:"name"`
+	QuantoMultiplier string `json:"quanto_multiplier"`
 }
 
-func getGateMarketInfo() []string {
+func getGateMarketInfo() ([]*MarketInfo, error) {
 	api := "https://api.gateio.ws/api/v4/futures/usdt/contracts"
 
 	req, err := http.NewRequest(http.MethodGet, api, nil)
 	if err != nil {
-		return []string{}
+		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -28,28 +29,24 @@ func getGateMarketInfo() []string {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return []string{}
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return []string{}
+		return nil, err
 	}
 
 	if !utils.InArray(resp.StatusCode, []int{http.StatusOK, http.StatusCreated, http.StatusNoContent}) {
-		return []string{}
+		return nil, err
 	}
 	var marketInfoList = make([]*MarketInfo, 0)
 	err = json.Unmarshal(body, &marketInfoList)
 	if err != nil {
-		return []string{}
+		return nil, err
 	}
-	marketList := make([]string, 0, len(marketInfoList))
-	for _, info := range marketInfoList {
-		marketList = append(marketList, info.Name)
-	}
-	return marketList
+	return marketInfoList, nil
 }
 
 func getGateApiClient() *gateapi.APIClient {

@@ -54,13 +54,24 @@ type binanceTransHistory struct {
 
 func main() {
 	initLog()
+	go ws.GateTicker()
+	time.Sleep(time.Second * 5)
+	quantoMultiplier := ws.GetGateMarketQuantoMultiplier("BTC_USDT")
+	if quantoMultiplier.IsZero() {
+		return
+	}
+	size, _ := decimal.NewFromString("0.01")
+	binanceSize := size.String()
+	gateSize := size.Div(quantoMultiplier).IntPart()
+	fmt.Println(binanceSize)
+	fmt.Println(gateSize)
 	ws.PlaceExchagneOrder("BTC_USDT", 1)
 	binance_api.InitBinanceApi("02rw4kB2Lla22hGzFEkD77Cxnm55ogQYeZk5hthXmfRUM2NuyVYBRMCRcL6tb0nd", "arMz2bClKB0F3nekZc8JNIw2YBZ1ONpxfaOhKRJyMPceyLBEZcawauYXc9kNwJz5")
 	//processPushMsg("", "")
 	binance_api.BinanceApiClient.Order("BTC_USDT", "0.01", "BUY")
 	////signalQuit()
 	//AsyncProcessBinancePubChan()
-	//go ws.GateTicker()
+
 	//select {}
 }
 
