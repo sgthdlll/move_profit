@@ -129,37 +129,10 @@ func GateTicker() {
 				priceD, _ := decimal.NewFromString(price)
 				GateLastPriceMap.Store(market.(string), priceD)
 			}
-			//tickerList := make([]*Ticker, 0)
-			//err = json.Unmarshal([]byte(result), &tickerList)
-			//if err != nil {
-			//	continue
-			//}
-			//fmt.Println(123)
 		}
 	}()
 
 	t := time.Now().Unix()
-	//pingMsg := NewMsg("futures.ping", "", t, []string{})
-	//err = pingMsg.send(c)
-	//if err != nil {
-	//	panic(err)
-	//}
-
-	//
-	//// subscribe order book
-	//orderBookMsg := NewMsg("futures.order_book", "subscribe", t, []string{"BTC_USDT"})
-	//err = orderBookMsg.send(c)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//// subscribe positions
-	//positionsMsg := NewMsg("futures.positions", "subscribe", t, []string{"USERID", "BTC_USDT"})
-	//positionsMsg.sign()
-	//err = positionsMsg.send(c)
-	//if err != nil {
-	//	panic(err)
-	//}
 	marketInfoList, err := gate_api.GetGateMarketInfo()
 	if len(marketInfoList) <= 0 || err != nil {
 		return

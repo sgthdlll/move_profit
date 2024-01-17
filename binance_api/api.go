@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/levigross/grequests"
-	"github.com/shopspring/decimal"
 	"io"
 	"move_profit/utils"
 	"net/http"
@@ -124,32 +123,6 @@ type fapiV2AccountPosition struct {
 	PositionSide           string `json:"positionSide"`
 	PositionAmt            string `json:"positionAmt"`
 	UpdateTime             int    `json:"updateTime"`
-}
-type apiOrderReq struct {
-	Symbol       string `json:"symbol"`       // 交易对
-	Side         string `json:"side"`         //买卖方向 SELL, BUY
-	PositionSide string `json:"positionSide"` //持仓方向 BOTH、LONG、SHORT
-	//"MARKET",  // 市价单
-	//"STOP", // 止损单
-	//"STOP_MARKET", // 止损市价单
-	//"TAKE_PROFIT", // 止盈单
-	//"TAKE_PROFIT_MARKET", // 止盈暑市价单
-	//"TRAILING_STOP_MARKET" // 跟踪止损市价单
-	OrderType  string          `json:"type"`
-	ReduceOnly string          `json:"reduceOnly"` //true, false; 非双开模式下默认false；双开模式下不接受此参数； 使用closePosition不支持此参数。
-	Quantity   decimal.Decimal `json:"quantity"`
-	Price      decimal.Decimal `json:"price"`
-	MyOrderId  string          `json:"newClientOrderId"` // 用户自定义的订单号
-	//true, false；触发后全部平仓，仅支持STOP_MARKET和TAKE_PROFIT_MARKET；不与quantity合用；自带只平仓效果，不与reduceOnly 合用
-	IsClosePosition string `json:"closePosition"`
-	// 有效方式
-	//"GTC", // 成交为止, 一直有效
-	//"IOC", // 无法立即成交(吃单)的部分就撤销
-	//"FOK", // 无法全部立即成交就撤销
-	//"GTX" // 无法成为挂单方就撤销
-	TimeInForce string `json:"timeInForce"`
-	Timestamp   int64  `json:"timestamp"`
-	RecvWindow  int64  `json:"recvWindow"`
 }
 
 /*

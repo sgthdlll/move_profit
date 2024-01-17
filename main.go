@@ -10,22 +10,12 @@ import (
 	"move_profit/gate_api"
 	"move_profit/gate_ws"
 	"move_profit/log"
-	"os"
-	"os/signal"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
 type TEngineType string
-
-const (
-	EngineTypeSpot        TEngineType = "spot"
-	EngineTypeFuturesUsdt TEngineType = "futures_usdt"
-	EngineTypeFuturesUsd  TEngineType = "futures_usd"
-	EngineTypeFuturesBtc  TEngineType = "futures_btc"
-)
 
 var Log, ErrLog *logging.Logger
 var quitChan chan struct{}
@@ -33,25 +23,10 @@ var wg sync.WaitGroup
 var binanceLastPriceMap sync.Map
 var count2Taker = 0
 var countTakerAndMaker = 0
-var count2Maker = 0
 
 func initLog() {
 	Log = log.New("./logs/move_profit.log", "DEBUG")
 	ErrLog = log.New("./logs/copy_trading_err.log", "DEBUG")
-}
-
-type binanceTransHistoryResp struct {
-	Rows  []*binanceTransHistory `json:"rows"`
-	Total int                    `json:"total"`
-}
-
-type binanceTransHistory struct {
-	Asset     string `json:"asset"`
-	TranId    int    `json:"tranId"`
-	Amount    string `json:"amount"`
-	Type      string `json:"type"`
-	Timestamp int64  `json:"timestamp"`
-	Status    string `json:"status"`
 }
 
 func main() {
@@ -86,93 +61,6 @@ func main() {
 	//AsyncProcessBinancePubChan()
 
 	//select {}
-}
-
-func signalQuit() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
-	for {
-		s := <-c
-		Log.Infof("notify get a signal %s", s.String())
-		switch s {
-		case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT:
-			close(quitChan)
-			wg.Wait()
-			return
-		case syscall.SIGHUP:
-		default:
-			close(quitChan)
-			wg.Wait()
-			return
-		}
-	}
-}
-
-func processPushMsg(apiKey, secretKey string) {
-	server, err := binance_ws.NewWsService(quitChan, Log, &binance_ws.ConnConf{
-		UserId:                   123,
-		ApiUrl:                   "https://fapi.binance.com",
-		URL:                      "wss://fstream.binance.com/ws",
-		Key:                      apiKey,
-		Secret:                   secretKey,
-		IsOpenPrivacyWs:          true,
-		IsOpenPublicWs:           false,
-		PublicChanLen:            5000,
-		PrivacyChanLen:           5000,
-		ListenKeyRefreshInterval: "58m50s",
-	})
-	if err != nil {
-		Log.Errorf("init binance ws err:%+v", err)
-		return
-	}
-
-	initChan := make(chan struct{})
-	go func(server *binance_ws.WsService, initChan chan struct{}) {
-		defer func() {
-			wg.Done()
-			if r := recover(); r != nil {
-				Log.Errorf("handler err:%+v", err)
-				return
-			}
-
-			server.Start(initChan)
-		}()
-	}(server, initChan)
-
-	select {
-	case <-initChan:
-	case <-time.After(time.Second * 60):
-		Log.Error("ws service init timeout")
-		return
-	}
-	var pri <-chan []byte
-	// 获取输出 chan
-	pri, err = server.GetPrivacyMsgChan()
-	if err != nil {
-		Log.Errorf("GetPrivacyMsgChan err:%+v", err)
-		return
-	}
-	var restartChan chan int
-	restartChan, err = server.GetRestartMsgChan()
-	if err != nil {
-		Log.Errorf("GetRestartMsgChan err:%+v", err)
-		return
-	}
-
-	for {
-		select {
-		case <-quitChan:
-			Log.Infof("binance ws push closed user_id:%d", 123)
-			return
-		case msgBytes := <-pri:
-			Log.Infof("binance [ProcessBinancePositionChange]userId:%d,msg:%s", 123, string(msgBytes))
-			//e.processBinancePriMsg(msgBytes)
-		case <-restartChan:
-			Log.Infof("binance restartFixBinanceLossPositonSignal user_id:%d", 123)
-			//第一次启动、断线重连需要拉取一次仓位信息，生成一次仓位信号
-			//e.restartFixBinanceLossPositonSignal()
-		}
-	}
 }
 
 func AsyncProcessBinancePubChan() {
@@ -278,32 +166,20 @@ func processPubMsg(msgBytes []byte) {
 		binanceLastPriceMap.Store(market, price)
 		gatePrice, ok := ws.GateLastPriceMap.Load(market)
 		if !ok {
-			return
+			continue
 		}
 		gatePriceD := gatePrice.(decimal.Decimal)
 		diff := price.Sub(gatePriceD).Abs()
 		diffRate := diff.Div(price)
-		bothTaker, _ := decimal.NewFromString("0.00091")
-		bothTaker = bothTaker.Mul(decimal.NewFromInt(2))
-
-		takerAndMaker, _ := decimal.NewFromString("0.00065")
-		bothMaker, _ := decimal.NewFromString("0.00033")
+		bothTaker, _ := decimal.NewFromString("0.001")
+		fee := bothTaker.Mul(decimal.NewFromInt(2))
 		msg := fmt.Sprintf("市场:%s gate市价:%+v binance市价:%+v 价差:%+v 价差比例:%+v%s", market, gatePriceD, price, diff, diffRate.Mul(decimal.NewFromInt(100)).Truncate(5), "%")
-		if diffRate.GreaterThanOrEqual(bothTaker) {
-			count2Taker++
-			Log.Infof("both taker:%s ,count:%d", msg, count2Taker)
-		} else if diffRate.GreaterThanOrEqual(takerAndMaker) {
-			countTakerAndMaker++
-			//Log.Infof("taker & maker:%s,count:%d", msg, countTakerAndMaker)
-		} else if diffRate.GreaterThanOrEqual(bothMaker) {
-			count2Maker++
-			//Log.Infof("both maker:%s,count:%d", msg, count2Maker)
+		if diffRate.LessThan(fee) {
+			continue
 		}
+		count2Taker++
+		Log.Infof("%s ,count:%d", msg, count2Taker)
 	}
-}
-
-func getMarketKey(market string, engineType TEngineType) string {
-	return fmt.Sprintf("%s_%s", market, engineType)
 }
 
 // BTCUSDT->BTC_USDT
