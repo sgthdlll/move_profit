@@ -2,20 +2,18 @@ package main
 
 import (
 	"move_profit/binance_api"
-	"move_profit/binance_ws"
 	"move_profit/gate_api"
-	"move_profit/gate_ws"
 	"move_profit/log"
 )
 
 func main() {
 	log.InitLog()
-	binance_api.InitBinanceApi("02rw4kB2Lla22hGzFEkD77Cxnm55ogQYeZk5hthXmfRUM2NuyVYBRMCRcL6tb0nd", "arMz2bClKB0F3nekZc8JNIw2YBZ1ONpxfaOhKRJyMPceyLBEZcawauYXc9kNwJz5")
-	gate_api.InitGateClient()
-
-	binance_ws.AsyncProcessBinancePubChan()
-	go gate_ws.GateTicker()
-	select {}
+	//binance_api.InitBinanceApi("02rw4kB2Lla22hGzFEkD77Cxnm55ogQYeZk5hthXmfRUM2NuyVYBRMCRcL6tb0nd", "arMz2bClKB0F3nekZc8JNIw2YBZ1ONpxfaOhKRJyMPceyLBEZcawauYXc9kNwJz5")
+	//gate_api.InitGateClient()
+	//
+	//binance_ws.AsyncProcessBinancePubChan()
+	//go gate_ws.GateTicker()
+	//select {}
 
 	//quantoMultiplier := ws.GetGateMarketQuantoMultiplier("BTC_USDT")
 	//if quantoMultiplier.IsZero() {
@@ -29,6 +27,7 @@ func main() {
 	binance_api.BinanceApiClient.SwitchPositionMode()
 	gate_api.InitGateClient()
 	gate_api.SwitchPositionMode()
+	gate_api.SwitchPositionLeverage("BTC_USDT", 10)
 	return
 	//pre2 设置小币种为5倍杠杆
 	//pre3 设置大币种为10倍杠杆
