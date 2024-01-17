@@ -54,7 +54,10 @@ type binanceTransHistory struct {
 
 func main() {
 	initLog()
+	AsyncProcessBinancePubChan()
 	go ws.GateTicker()
+	select {}
+
 	time.Sleep(time.Second * 5)
 	quantoMultiplier := ws.GetGateMarketQuantoMultiplier("BTC_USDT")
 	if quantoMultiplier.IsZero() {
@@ -63,6 +66,13 @@ func main() {
 	size, _ := decimal.NewFromString("0.01")
 	binanceSize := size.String()
 	gateSize := size.Div(quantoMultiplier).IntPart()
+	//pre1 设置持仓模式为单向持仓
+	//pre2 设置小币种为5倍杠杆
+	//pre3 设置大币种为10倍杠杆
+
+	//1检测到价差大于taker手续费
+	//2暂定用120U计算下单数量
+	//3低价交易所挂多单，高价交易所挂卖单
 	fmt.Println(binanceSize)
 	fmt.Println(gateSize)
 	ws.PlaceExchagneOrder("BTC_USDT", 1)
@@ -271,6 +281,8 @@ func processPubMsg(msgBytes []byte) {
 		diff := price.Sub(gatePriceD).Abs()
 		diffRate := diff.Div(price)
 		bothTaker, _ := decimal.NewFromString("0.00091")
+		bothTaker = bothTaker.Mul(decimal.NewFromInt(2))
+
 		takerAndMaker, _ := decimal.NewFromString("0.00065")
 		bothMaker, _ := decimal.NewFromString("0.00033")
 		msg := fmt.Sprintf("市场:%s gate市价:%+v binance市价:%+v 价差:%+v 价差比例:%+v%s", market, gatePriceD, price, diff, diffRate.Mul(decimal.NewFromInt(100)).Truncate(5), "%")
