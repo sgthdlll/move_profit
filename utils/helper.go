@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"move_profit/log"
 	"strings"
 )
 
@@ -37,7 +36,6 @@ func InArray(val int, arr []int) bool {
 func Trans2GateMarket(market string) string {
 	arr := strings.Split(market, "USDT")
 	if len(arr) != 2 {
-		log.Log.Errorf("market:%s transMarket err", market)
 		return ""
 	}
 	return arr[0] + "_USDT"

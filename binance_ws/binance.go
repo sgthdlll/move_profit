@@ -16,16 +16,16 @@ import (
 var binanceLastPriceMap sync.Map
 var count2Taker = 0
 
-var fishingChan = make(chan TmpPositionInfo)
+var fishingChan = make(chan *TmpPositionInfo, 1)
 
 func AsyncProcessBinancePubChan() {
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Log.Errorf("handler err:%+v", r)
-				return
-			}
-		}()
+		//defer func() {
+		//	if r := recover(); r != nil {
+		//		log.Log.Errorf("handler err:%+v", r)
+		//		return
+		//	}
+		//}()
 
 		processBinancePubChan()
 	}()
@@ -108,9 +108,12 @@ func processPubMsg(msgBytes []byte) {
 		binancePrice, _ := ticker.Get("c").String()
 		binancePriceD, _ := decimal.NewFromString(binancePrice)
 		if !binancePriceD.IsPositive() {
-			return
+			continue
 		}
 		market := utils.Trans2GateMarket(binanceMarket)
+		if utils.InArrayString(market, []string{"BTC_USDT", "ETH_USDT"}) {
+			continue
+		}
 		binanceLastPriceMap.Store(market, binancePriceD)
 		gatePrice, ok := gate_ws.GateLastPriceMap.Load(market)
 		if !ok {
@@ -119,33 +122,40 @@ func processPubMsg(msgBytes []byte) {
 		gatePriceD := gatePrice.(decimal.Decimal)
 		diff := binancePriceD.Sub(gatePriceD).Abs()
 		diffRate := diff.Div(binancePriceD)
-		bothTaker, _ := decimal.NewFromString("0.001")
-
-		fee := bothTaker.Mul(decimal.NewFromInt(2))
+		fee, _ := decimal.NewFromString("0.005")
+		lowFee, _ := decimal.NewFromString("0.002")
 		msg := fmt.Sprintf("市场:%s gate市价:%+v binance市价:%+v 价差:%+v 价差比例:%+v%s", market, gatePriceD, binancePriceD, diff, diffRate.Mul(decimal.NewFromInt(100)).Truncate(5), "%")
-		stopDiff, _ := decimal.NewFromString("0.0001")
-		if diffRate.LessThan(stopDiff) {
-			//出现平仓信号，判断是否有仓位可平仓
-			log.Log.Infof("[close position]%s", msg)
-		}
-
 		if len(fishingChan) >= 1 {
 			tmp := <-fishingChan
+			fishingChan <- tmp
+			stopDiff := tmp.DiffRate.Sub(lowFee)
+			//stopDiff, _ := decimal.NewFromString("0.0002")
+
 			if tmp.Market == market {
-				//gate买单，binance卖单
-				_, err = gate_api.PlaceExchagneOrder(tmp.Market, tmp.GatePositionSize*(-1))
-				if err != nil {
-					continue
+				fmt.Println(fmt.Sprintf("market:%s diffRate:%+v stopDiff:%+v tmp market:%s", market, diffRate, stopDiff, tmp.Market))
+				if diffRate.LessThan(stopDiff) {
+					<-fishingChan
+					//出现平仓信号，判断是否有仓位可平仓
+					log.Log.Infof("[close position]%s", msg)
+					_, err = gate_api.PlaceExchagneOrder(tmp.Market, tmp.GatePositionSize*(-1))
+					if err != nil {
+						log.Log.Infof("gate err:%+v market:%s,size:%d", err, market, tmp.GatePositionSize*(-1))
+						panic(err)
+					}
+					side := "BUY"
+					if tmp.BinancePositionSide == "BUY" {
+						side = "SELL"
+					}
+					_, err = binance_api.BinanceApiClient.Order(tmp.Market,
+						tmp.BinancePositionSize.String(), side)
+					if err != nil {
+						log.Log.Infof("binance err:%+v market:%s size:%+v", err, market, tmp.BinancePositionSize.Mul(decimal.NewFromInt(-1)))
+						panic(err)
+					}
+
 				}
-				_, err = binance_api.BinanceApiClient.Order(tmp.Market,
-					tmp.BinancePositionSize.Mul(decimal.NewFromInt(-1)).String(), "SELL")
-				if err != nil {
-					continue
-				}
-				return
-			} else {
-				fishingChan <- tmp
 			}
+			continue
 		}
 		if diffRate.LessThan(fee) {
 			continue
@@ -166,9 +176,12 @@ func processPubMsg(msgBytes []byte) {
 		count2Taker++
 		log.Log.Infof("%s ,count:%d", msg, count2Taker)
 
-		tmp := TmpPositionInfo{
-			Market: market,
+		tmp := &TmpPositionInfo{
+			Market:   market,
+			DiffRate: diffRate,
 		}
+		fmt.Println(123)
+
 		binance_api.BinanceApiClient.SwitchMarginMode(market)
 		binance_api.BinanceApiClient.SwitchLeverage(market, 10)
 		gate_api.SwitchPositionLeverage(market, 10)
@@ -176,40 +189,42 @@ func processPubMsg(msgBytes []byte) {
 			//gate买单，binance卖单
 			_, err = gate_api.PlaceExchagneOrder(market, sizeGate)
 			if err != nil {
-				continue
+				log.Log.Infof("gate err:%+v market:%s,size:%d", err, market, sizeGate)
+				panic(err)
 			}
 			tmp.GatePositionSize = sizeGate
 			_, err = binance_api.BinanceApiClient.Order(market, binanceSize.String(), "SELL")
 			if err != nil {
-				continue
+				log.Log.Infof("binance err:%+v market:%s size:%+v", err, market, binanceSize)
+				panic(err)
 			}
-			tmp.BinancePositionSize = binanceSize.Mul(decimal.NewFromInt(-1))
+			tmp.BinancePositionSize = binanceSize
+			tmp.BinancePositionSide = "SELL"
 		} else {
 			//gate卖单，binance买单
 			_, err = gate_api.PlaceExchagneOrder(market, sizeGate*(-1))
 			if err != nil {
-				continue
+				log.Log.Infof("gate err:%+v market:%s,size:%d", err, market, sizeGate)
+				panic(err)
 			}
 			tmp.GatePositionSize = sizeGate * (-1)
 			_, err = binance_api.BinanceApiClient.Order(market, binanceSize.String(), "BUY")
 			if err != nil {
+				log.Log.Infof("binance err:%+v market:%s size:%+v", err, market, binanceSize)
 				continue
 			}
 			tmp.BinancePositionSize = binanceSize
+			tmp.BinancePositionSide = "BUY"
 		}
-
-		////设置binance market为全仓
-		//binance_api.BinanceApiClient.SwitchMarginMode("BTC_USDT")
-		////设置binance market杠杆
-		//binance_api.BinanceApiClient.SwitchLeverage("BTC_USDT", 30)
-		////设置gate全仓杠杆
-		//gate_api.SwitchPositionLeverage("BTC_USDT", 10)
-		fmt.Println(fmt.Sprintf("tmp:%+v", tmp))
+		fishingChan <- tmp
+		fmt.Println(123)
 	}
 }
 
 type TmpPositionInfo struct {
 	Market              string
 	BinancePositionSize decimal.Decimal
+	BinancePositionSide string
 	GatePositionSize    int
+	DiffRate            decimal.Decimal
 }

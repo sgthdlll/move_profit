@@ -11,10 +11,10 @@ import (
 func main() {
 	log.InitLog()
 	binance_api.InitBinanceApi("02rw4kB2Lla22hGzFEkD77Cxnm55ogQYeZk5hthXmfRUM2NuyVYBRMCRcL6tb0nd", "arMz2bClKB0F3nekZc8JNIw2YBZ1ONpxfaOhKRJyMPceyLBEZcawauYXc9kNwJz5")
+	gate_api.InitGateClient()
 	binance_api.BinanceApiClient.SwitchPositionMode()
 	gate_api.SwitchPositionMode()
 
-	gate_api.InitGateClient()
 	binance_ws.AsyncProcessBinancePubChan()
 
 	go gate_ws.GateTicker()
