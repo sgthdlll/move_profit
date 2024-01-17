@@ -5,11 +5,13 @@ import (
 	"github.com/bitly/go-simplejson"
 	"github.com/op/go-logging"
 	"github.com/shopspring/decimal"
+	"move_profit/binance_api"
+	"move_profit/binance_ws"
+	"move_profit/gate_api"
+	"move_profit/gate_ws"
+	"move_profit/log"
 	"os"
 	"os/signal"
-	"quant/binance_api"
-	"quant/log"
-	"quant/ws"
 	"strings"
 	"sync"
 	"syscall"
@@ -76,7 +78,7 @@ func main() {
 	//4当交易所没有价差的时候，双腿平仓
 	fmt.Println(binanceSize)
 	fmt.Println(gateSize)
-	ws.PlaceExchagneOrder("BTC_USDT", 1)
+	gate_api.PlaceExchagneOrder("BTC_USDT", 1)
 	binance_api.InitBinanceApi("02rw4kB2Lla22hGzFEkD77Cxnm55ogQYeZk5hthXmfRUM2NuyVYBRMCRcL6tb0nd", "arMz2bClKB0F3nekZc8JNIw2YBZ1ONpxfaOhKRJyMPceyLBEZcawauYXc9kNwJz5")
 	//processPushMsg("", "")
 	binance_api.BinanceApiClient.Order("BTC_USDT", "0.01", "BUY")
@@ -107,7 +109,7 @@ func signalQuit() {
 }
 
 func processPushMsg(apiKey, secretKey string) {
-	server, err := ws.NewWsService(quitChan, Log, &ws.ConnConf{
+	server, err := binance_ws.NewWsService(quitChan, Log, &binance_ws.ConnConf{
 		UserId:                   123,
 		ApiUrl:                   "https://fapi.binance.com",
 		URL:                      "wss://fstream.binance.com/ws",
@@ -125,7 +127,7 @@ func processPushMsg(apiKey, secretKey string) {
 	}
 
 	initChan := make(chan struct{})
-	go func(server *ws.WsService, initChan chan struct{}) {
+	go func(server *binance_ws.WsService, initChan chan struct{}) {
 		defer func() {
 			wg.Done()
 			if r := recover(); r != nil {
@@ -189,7 +191,7 @@ func AsyncProcessBinancePubChan() {
 }
 
 func processBinancePubChan() {
-	server, err := ws.NewWsService(quitChan, Log, &ws.ConnConf{
+	server, err := binance_ws.NewWsService(quitChan, Log, &binance_ws.ConnConf{
 		ApiUrl:                   "https://fapi.binance.com",
 		URL:                      "wss://fstream.binance.com/ws",
 		IsOpenPublicWs:           true,
@@ -202,7 +204,7 @@ func processBinancePubChan() {
 
 	initChan := make(chan struct{})
 	wg.Add(1)
-	go func(server *ws.WsService, initChan chan struct{}) {
+	go func(server *binance_ws.WsService, initChan chan struct{}) {
 		defer func() {
 			wg.Done()
 			if r := recover(); r != nil {
@@ -224,7 +226,7 @@ func processBinancePubChan() {
 		return
 	}
 
-	err = server.WriteSubscribeMsg(ws.SubscribeMsgRequest{
+	err = server.WriteSubscribeMsg(binance_ws.SubscribeMsgRequest{
 		Method: "SUBSCRIBE",
 		Params: []interface{}{"!ticker@arr"},
 	})

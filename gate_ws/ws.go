@@ -10,6 +10,7 @@ import (
 	"github.com/bitly/go-simplejson"
 	"github.com/shopspring/decimal"
 	"io"
+	"move_profit/gate_api"
 	"net/url"
 	"sync"
 	"time"
@@ -159,7 +160,7 @@ func GateTicker() {
 	//if err != nil {
 	//	panic(err)
 	//}
-	marketInfoList, err := getGateMarketInfo()
+	marketInfoList, err := gate_api.GetGateMarketInfo()
 	if len(marketInfoList) <= 0 || err != nil {
 		return
 	}

@@ -1,10 +1,11 @@
-package ws
+package binance_ws
 
 import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/op/go-logging"
+	"move_profit/binance_api"
 	"sync"
 	"time"
 
@@ -214,7 +215,7 @@ func (ws *WsService) refreshListenKey(du time.Duration) {
 		case <-ticker.C:
 			isSuccess := false
 			for i := 0; i < ws.conf.MaxRetryConn; i++ {
-				err := RefreshListenKey(ws.conf.ApiUrl, ws.conf.Key)
+				err := binance_api.RefreshListenKey(ws.conf.ApiUrl, ws.conf.Key)
 				if err != nil {
 					ws.logger.Warningf("failed to refresh listkenKey:%s, retry %d times", err.Error(), i)
 					time.Sleep(time.Millisecond * 100 * time.Duration(i))
@@ -234,7 +235,7 @@ func (ws *WsService) refreshListenKey(du time.Duration) {
 			isSuccess := false
 			for i := 0; i < ws.conf.MaxRetryConn; i++ {
 				// listenKey 过期，手动刷新重连; 即时 listenKey 过期，链接也不会主动断开
-				listenKey, err = GetListenKey(ws.conf.ApiUrl, ws.conf.Key, ws.conf.Secret)
+				listenKey, err = binance_api.GetListenKey(ws.conf.ApiUrl, ws.conf.Key, ws.conf.Secret)
 				if err != nil {
 					ws.logger.Warningf("failed to get listenKey:%s, unable to get a new listenKey for expire event, retry %d times", err.Error(), i)
 					time.Sleep(time.Millisecond * 100 * time.Duration(i))
@@ -316,7 +317,7 @@ func (ws *WsService) initClient() error {
 		msgChan := make(chan []byte, ws.conf.PrivacyChanLen)
 		ws.privacyMsgChan = msgChan
 
-		listenKey, err := GetListenKey(ws.conf.ApiUrl, ws.conf.Key, ws.conf.Secret)
+		listenKey, err := binance_api.GetListenKey(ws.conf.ApiUrl, ws.conf.Key, ws.conf.Secret)
 		if err != nil {
 			return fmt.Errorf("failed to get listenKey:%s, unable to start privacy ws", err.Error())
 		}
@@ -539,7 +540,7 @@ func (ws *WsService) reconnectPrivacy() error {
 				// timeout
 				ws.logger.Warningf("failed to dial %s timeout:%s, manual get a new listenKey to retry", ws.getPrivacyUrl(), err.Error())
 
-				listenKey, err := GetListenKey(ws.conf.ApiUrl, ws.conf.Key, ws.conf.Secret)
+				listenKey, err := binance_api.GetListenKey(ws.conf.ApiUrl, ws.conf.Key, ws.conf.Secret)
 				if err != nil {
 					return fmt.Errorf("failed to get listenKey:%s, unable to get a new listenKey for reconnect", err.Error())
 				}

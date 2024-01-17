@@ -1,4 +1,4 @@
-package ws
+package gate_api
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"fmt"
 	gateapi "github.com/gateio/gateapi-go/v6"
 	"io"
+	"move_profit/utils"
 	"net/http"
-	"quant/utils"
 	"time"
 )
 
@@ -16,7 +16,7 @@ type MarketInfo struct {
 	QuantoMultiplier string `json:"quanto_multiplier"`
 }
 
-func getGateMarketInfo() ([]*MarketInfo, error) {
+func GetGateMarketInfo() ([]*MarketInfo, error) {
 	api := "https://api.gateio.ws/api/v4/futures/usdt/contracts"
 
 	req, err := http.NewRequest(http.MethodGet, api, nil)
