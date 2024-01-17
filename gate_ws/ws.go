@@ -134,7 +134,7 @@ func GateTicker() {
 
 	t := time.Now().Unix()
 	marketInfoList, err := gate_api.GetGateMarketInfo()
-	if len(marketInfoList) <= 0 || err != nil {
+	if len(marketInfoList) <= 0 {
 		return
 	}
 	marketNameList := make([]string, 0, len(marketInfoList))

@@ -7,6 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 	"move_profit/binance_api"
 	"move_profit/binance_ws"
+	"move_profit/gate_api"
 	"move_profit/gate_ws"
 	"move_profit/log"
 	"strings"
@@ -14,14 +15,11 @@ import (
 	"time"
 )
 
-type TEngineType string
-
 var Log, ErrLog *logging.Logger
 var quitChan chan struct{}
 var wg sync.WaitGroup
 var binanceLastPriceMap sync.Map
 var count2Taker = 0
-var countTakerAndMaker = 0
 
 func initLog() {
 	Log = log.New("./logs/move_profit.log", "DEBUG")
@@ -29,7 +27,7 @@ func initLog() {
 }
 
 func main() {
-	//initLog()
+	initLog()
 	//AsyncProcessBinancePubChan()
 	//go ws.GateTicker()
 	//select {}
@@ -44,6 +42,8 @@ func main() {
 	//pre1 设置持仓模式为单向持仓
 	binance_api.InitBinanceApi("02rw4kB2Lla22hGzFEkD77Cxnm55ogQYeZk5hthXmfRUM2NuyVYBRMCRcL6tb0nd", "arMz2bClKB0F3nekZc8JNIw2YBZ1ONpxfaOhKRJyMPceyLBEZcawauYXc9kNwJz5")
 	binance_api.BinanceApiClient.SwitchPositionMode()
+	gate_api.InitGateClient()
+	gate_api.SwitchPositionMode()
 	return
 	//pre2 设置小币种为5倍杠杆
 	//pre3 设置大币种为10倍杠杆
