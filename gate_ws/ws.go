@@ -19,7 +19,6 @@ import (
 )
 
 var GateLastPriceMap sync.Map
-var GateMarketInfoMap sync.Map
 
 type Ticker struct {
 	Contract              string `json:"contract"`
@@ -140,7 +139,6 @@ func GateTicker() {
 	marketNameList := make([]string, 0, len(marketInfoList))
 	for _, m := range marketInfoList {
 		marketNameList = append(marketNameList, m.Name)
-		GateMarketInfoMap.Store(m.Name, m.QuantoMultiplier)
 	}
 	tickerMsg := NewMsg("futures.tickers", "subscribe", t, marketNameList)
 	tickerMsg.sign()
@@ -150,13 +148,4 @@ func GateTicker() {
 	}
 
 	select {}
-}
-
-func GetGateMarketQuantoMultiplier(market string) decimal.Decimal {
-	quantoMultiplier, ok := GateMarketInfoMap.Load(market)
-	if !ok {
-		return decimal.Zero
-	}
-	quantoMultiplierD, _ := decimal.NewFromString(quantoMultiplier.(string))
-	return quantoMultiplierD
 }

@@ -3,20 +3,31 @@ package gate_api
 import (
 	"context"
 	"fmt"
+	"github.com/antihax/optional"
 	gateapi "github.com/gateio/gateapi-go/v6"
 	"net/http"
+	"sync"
 	"time"
 )
 
 var client *gateapi.APIClient
 
-type MarketInfo struct {
-	Name             string `json:"name"`
-	QuantoMultiplier string `json:"quanto_multiplier"`
-}
+var gateMarketInfoMap sync.Map
 
 func InitGateClient() {
 	client = getGateApiClient()
+	gateMarketInfoList, _ := GetGateMarketInfo()
+	for _, contract := range gateMarketInfoList {
+		gateMarketInfoMap.Store(contract.Name, contract)
+	}
+}
+
+func GetMarketInfo(market string) (gateapi.Contract, bool) {
+	val, ok := gateMarketInfoMap.Load(market)
+	if !ok {
+		return gateapi.Contract{}, false
+	}
+	return val.(gateapi.Contract), true
 }
 
 func GetGateMarketInfo() ([]gateapi.Contract, error) {
@@ -60,7 +71,7 @@ func SwitchPositionLeverage(market string, leverage int) error {
 		Key:    "f6f3cc50911e00ae4ff6a5dbb1913a5e",
 		Secret: "8ea94f2850ad01d1da565e5c2ef6369e9667cb18209f676120857d5bc8f42c34",
 	})
-	_, _, err := client.FuturesApi.UpdatePositionLeverage(ctx, "usdt", market, fmt.Sprintf("%d", leverage), nil)
+	_, _, err := client.FuturesApi.UpdatePositionLeverage(ctx, "usdt", market, "0", &gateapi.UpdatePositionLeverageOpts{CrossLeverageLimit: optional.NewString(fmt.Sprintf("%d", leverage))})
 	if err != nil {
 		return err
 	}
