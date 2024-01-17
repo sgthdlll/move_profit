@@ -14,6 +14,8 @@ require (
 )
 
 require (
+	github.com/antihax/optional v1.0.0 // indirect
+	github.com/gateio/gateapi-go/v6 v6.60.1 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
