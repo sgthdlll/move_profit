@@ -169,6 +169,9 @@ func processPubMsg(msgBytes []byte) {
 		tmp := TmpPositionInfo{
 			Market: market,
 		}
+		binance_api.BinanceApiClient.SwitchMarginMode(market)
+		binance_api.BinanceApiClient.SwitchLeverage(market, 10)
+		gate_api.SwitchPositionLeverage(market, 10)
 		if gatePriceD.LessThan(binancePriceD) {
 			//gate买单，binance卖单
 			_, err = gate_api.PlaceExchagneOrder(market, sizeGate)
@@ -194,6 +197,13 @@ func processPubMsg(msgBytes []byte) {
 			}
 			tmp.BinancePositionSize = binanceSize
 		}
+
+		////设置binance market为全仓
+		//binance_api.BinanceApiClient.SwitchMarginMode("BTC_USDT")
+		////设置binance market杠杆
+		//binance_api.BinanceApiClient.SwitchLeverage("BTC_USDT", 30)
+		////设置gate全仓杠杆
+		//gate_api.SwitchPositionLeverage("BTC_USDT", 10)
 		fmt.Println(fmt.Sprintf("tmp:%+v", tmp))
 	}
 }
