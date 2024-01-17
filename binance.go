@@ -70,9 +70,10 @@ func main() {
 	//pre2 设置小币种为5倍杠杆
 	//pre3 设置大币种为10倍杠杆
 
-	//1检测到价差大于taker手续费
+	//1检测到价差大于双倍taker手续费
 	//2暂定用120U计算下单数量
 	//3低价交易所挂多单，高价交易所挂卖单
+	//4当交易所没有价差的时候，双腿平仓
 	fmt.Println(binanceSize)
 	fmt.Println(gateSize)
 	ws.PlaceExchagneOrder("BTC_USDT", 1)
