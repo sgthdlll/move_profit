@@ -6,7 +6,7 @@ import (
 	"github.com/shopspring/decimal"
 	"move_profit/binance_api"
 	"move_profit/gate_api"
-	gate_ws "move_profit/gate_ws"
+	"move_profit/gate_ws"
 	"move_profit/log"
 	"move_profit/utils"
 	"sync"
@@ -16,7 +16,7 @@ import (
 var binanceLastPriceMap sync.Map
 var count2Taker = 0
 
-var fishingChan = make(chan int)
+var fishingChan = make(chan TmpPositionInfo)
 
 func AsyncProcessBinancePubChan() {
 	go func() {
@@ -130,7 +130,22 @@ func processPubMsg(msgBytes []byte) {
 		}
 
 		if len(fishingChan) >= 1 {
-			continue
+			tmp := <-fishingChan
+			if tmp.Market == market {
+				//gate买单，binance卖单
+				_, err = gate_api.PlaceExchagneOrder(tmp.Market, tmp.GatePositionSize*(-1))
+				if err != nil {
+					continue
+				}
+				_, err = binance_api.BinanceApiClient.Order(tmp.Market,
+					tmp.BinancePositionSize.Mul(decimal.NewFromInt(-1)).String(), "SELL")
+				if err != nil {
+					continue
+				}
+				return
+			} else {
+				fishingChan <- tmp
+			}
 		}
 		if diffRate.LessThan(fee) {
 			continue
@@ -146,32 +161,45 @@ func processPubMsg(msgBytes []byte) {
 		if !ok {
 			continue
 		}
-		size := decimal.NewFromInt(120).Div(binancePriceD).Truncate(int32(binanceMarketInfo.QuantityPrecision))
-		sizeGate := size.Div(quantoMultiplier)
+		binanceSize := decimal.NewFromInt(120).Div(binancePriceD).Truncate(int32(binanceMarketInfo.QuantityPrecision))
+		sizeGate := int(binanceSize.Div(quantoMultiplier).IntPart())
 		count2Taker++
 		log.Log.Infof("%s ,count:%d", msg, count2Taker)
-		fmt.Println(fmt.Sprintf("size:%+v  size_gate:%+v", size, sizeGate))
+
+		tmp := TmpPositionInfo{
+			Market: market,
+		}
 		if gatePriceD.LessThan(binancePriceD) {
 			//gate买单，binance卖单
-			_, err = gate_api.PlaceExchagneOrder(market, int(sizeGate.IntPart()))
+			_, err = gate_api.PlaceExchagneOrder(market, sizeGate)
 			if err != nil {
 				continue
 			}
-			_, err = binance_api.BinanceApiClient.Order(market, size.String(), "SELL")
+			tmp.GatePositionSize = sizeGate
+			_, err = binance_api.BinanceApiClient.Order(market, binanceSize.String(), "SELL")
 			if err != nil {
 				continue
 			}
+			tmp.BinancePositionSize = binanceSize.Mul(decimal.NewFromInt(-1))
 		} else {
 			//gate卖单，binance买单
-			_, err = gate_api.PlaceExchagneOrder(market, int(sizeGate.Mul(decimal.NewFromInt(-1)).IntPart()))
+			_, err = gate_api.PlaceExchagneOrder(market, sizeGate*(-1))
 			if err != nil {
 				continue
 			}
-			_, err = binance_api.BinanceApiClient.Order(market, size.String(), "BUY")
+			tmp.GatePositionSize = sizeGate * (-1)
+			_, err = binance_api.BinanceApiClient.Order(market, binanceSize.String(), "BUY")
 			if err != nil {
 				continue
 			}
+			tmp.BinancePositionSize = binanceSize
 		}
-		fishingChan <- 1
+		fmt.Println(fmt.Sprintf("tmp:%+v", tmp))
 	}
+}
+
+type TmpPositionInfo struct {
+	Market              string
+	BinancePositionSize decimal.Decimal
+	GatePositionSize    int
 }
