@@ -51,10 +51,8 @@ func GetGateMarketInfo() ([]*MarketInfo, error) {
 
 func getGateApiClient() *gateapi.APIClient {
 	cfg := gateapi.NewConfiguration()
-	//    cfg.AddDefaultHeader(kHeadUserIdKey, strconv.FormatInt(int64(userId), 10))
 	cfg.HTTPClient = &http.Client{Timeout: 60 * time.Second}
 	client := gateapi.NewAPIClient(cfg)
-	//client.ChangeBasePath(config.ConfigNode.Apiv4Excore)
 	return client
 }
 

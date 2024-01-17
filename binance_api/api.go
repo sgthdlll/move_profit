@@ -29,7 +29,7 @@ type switchLeverageResp struct {
 	Symbol           string `json:"symbol"`
 }
 
-type errMsgResp struct {
+type MsgResp struct {
 	Code int    `json:"code"`
 	Msg  string `json:"msg"`
 }
@@ -114,7 +114,7 @@ func (b *binance) Order(market string, size string, side string) (*apiOrderRsp, 
 		return nil, err
 	}
 	if !utils.InArray(resp.StatusCode, []int{http.StatusOK, http.StatusCreated, http.StatusNoContent}) {
-		var res errMsgResp
+		var res MsgResp
 		err := json.Unmarshal(body, &res)
 		if err != nil {
 			return nil, fmt.Errorf("resp code not 200 resp:%+v", resp)
@@ -157,7 +157,7 @@ func (b *binance) GetBinanceTimeStamp() (int64, error) {
 	}
 
 	if !utils.InArray(resp.StatusCode, []int{http.StatusOK, http.StatusCreated, http.StatusNoContent}) {
-		var res errMsgResp
+		var res MsgResp
 		err := json.Unmarshal(body, &res)
 		if err != nil {
 			return 0, fmt.Errorf("resp code not 200 resp:%+v", resp)
@@ -170,6 +170,63 @@ func (b *binance) GetBinanceTimeStamp() (int64, error) {
 		return 0, err
 	}
 	return timeStampResp.ServerTime, nil
+}
+
+// 切换持仓模式
+func (b *binance) SwitchPositionMode() error {
+	values := url.Values{}
+	serverTimeStamp := time.Now().UnixMilli()
+	values.Set("dualSidePosition", "false")
+	values.Set("timestamp", fmt.Sprintf("%d", serverTimeStamp))
+
+	binanceStamp, _ := b.GetBinanceTimeStamp()
+	if binanceStamp > 0 {
+		diff := binanceStamp - serverTimeStamp
+		if diff < 0 {
+			diff = -diff
+		}
+		if diff >= 5000 {
+			values.Set("recvWindow", fmt.Sprintf("%d", diff))
+		}
+	}
+
+	api := fmt.Sprintf("%s/fapi/v1/positionSide/dual?%s&signature=%s", b.fapiEndpoint, values.Encode(), b.makeSignature(b.secret, values))
+
+	req, err := http.NewRequest(http.MethodPost, api, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("X-MBX-APIKEY", b.key)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if !utils.InArray(resp.StatusCode, []int{http.StatusOK, http.StatusCreated, http.StatusNoContent}) {
+		var res MsgResp
+		err = json.Unmarshal(body, &res)
+		if err != nil {
+			return fmt.Errorf("resp code not 200 resp:%+v", resp)
+		}
+		if res.Code == apikeyInvalidCode {
+			return ApikeyInvalidError
+		}
+		return fmt.Errorf("%s", res.Msg)
+	}
+	var res MsgResp
+	err = json.Unmarshal(body, &res)
+	if err != nil {
+		return fmt.Errorf("resp code not 200 resp:%+v", resp)
+	}
+	return nil
 }
 
 // 切换杠杆模式
@@ -212,7 +269,7 @@ func (b *binance) switchLeverageType(leverageType string) error {
 		return err
 	}
 	if !utils.InArray(resp.StatusCode, []int{http.StatusOK, http.StatusCreated, http.StatusNoContent}) {
-		var res errMsgResp
+		var res MsgResp
 		err = json.Unmarshal(body, &res)
 		if err != nil {
 			return fmt.Errorf("resp code not 200 resp:%+v", resp)
@@ -268,7 +325,7 @@ func (b *binance) switchLeverage(leverage int) (*switchLeverageResp, error) {
 		return nil, err
 	}
 	if !utils.InArray(resp.StatusCode, []int{http.StatusOK, http.StatusCreated, http.StatusNoContent}) {
-		var res errMsgResp
+		var res MsgResp
 		err = json.Unmarshal(body, &res)
 		if err != nil {
 			return nil, fmt.Errorf("resp code not 200 resp:%+v", resp)
